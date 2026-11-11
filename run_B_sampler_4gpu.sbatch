@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=ramer_B_sampler
 #SBATCH --partition=a100
-#SBATCH --nodelist=node105
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=24
-#SBATCH --gres=gpu:3
-#SBATCH --mem=192G
+#SBATCH --cpus-per-task=8
+#SBATCH --gres=gpu:1
+#SBATCH --mem=64G
 #SBATCH --time=0
 set -euo pipefail
 CODE_DIR="${CODE_DIR:-/datapool/home/tanlijun/RAMER/dec-v2/RAMER_unsupervised_AB}"
@@ -32,16 +31,17 @@ for f in "$CODE_DIR/train_mechpair_AB_pair_sampler.py" "$CODE_DIR/prepared_input
  [[ -f "$f" ]] || { echo "Missing file: $f" >&2; exit 2; }
 done
 [[ -x "$PYTHON" ]] || { echo "Python is not executable: $PYTHON" >&2; exit 2; }
-SAVE_DIR="${SAVE_DIR_OVERRIDE:-$CODE_DIR/b_sampler_3gpu/${RUN_ID}_seed${SEED}_${RUN_TAG}}"
+SAVE_DIR="${SAVE_DIR_OVERRIDE:-$CODE_DIR/b_sampler_gpu/${RUN_ID}_seed${SEED}_${RUN_TAG}_g${SLURM_GPUS_ON_NODE:-${GPUS:-1}}}"
 if [[ -e "$SAVE_DIR/metrics.jsonl" || -e "$SAVE_DIR/last.pt" ]]; then
  echo "Refuse to overwrite existing run: $SAVE_DIR" >&2;exit 2
 fi
 mkdir -p "$SAVE_DIR"
 cd "$CODE_DIR"
 export TOKENIZERS_PARALLELISM=false OMP_NUM_THREADS=4
-printf '[RUN] id=%s rows=20000 seed=%s 3 GPU batch/gpu=16 pairs=%s\n' "$RUN_ID" "$SEED" "$PAIRS_PER_BATCH"
+printf '[RESOURCES] host=%s allocated_gpus=%s cuda_visible=%s\n' "$(hostname)" "${SLURM_GPUS_ON_NODE:-unknown}" "${CUDA_VISIBLE_DEVICES:-not-set}"
+printf '[RUN] id=%s rows=20000 seed=%s GPUs=${SLURM_GPUS_ON_NODE:-unknown} batch/gpu=16 pairs=%s\n' "$RUN_ID" "$SEED" "$PAIRS_PER_BATCH"
 sha256sum "$CODE_DIR/train_mechpair_AB_pair_sampler.py"
-"$PYTHON" -m torch.distributed.run --standalone --nnodes=1 --nproc_per_node=3 \
+"$PYTHON" -m torch.distributed.run --standalone --nnodes=1 --nproc_per_node=gpu \
  "$CODE_DIR/train_mechpair_AB_pair_sampler.py" \
  --variant b --encoder-dir "$ENCODER_DIR" \
  --json-file "$DATA_DIR/uniprot_20W_struct_seq_reaction_121_without_new392.json" \
