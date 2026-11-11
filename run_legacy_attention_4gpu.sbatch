@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=ramer_legacy_4gpu
+#SBATCH --job-name=ramer_legacy_3gpu
 #SBATCH --partition=a100
+#SBATCH --nodelist=node105
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=24
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:3
 #SBATCH --mem=192G
 #SBATCH --time=0
 set -euo pipefail
@@ -45,12 +46,12 @@ fi
 mkdir -p "$SAVE_DIR"
 cd "$CODE_DIR"
 export ENCODER_DIR TOKENIZERS_PARALLELISM=false OMP_NUM_THREADS=4
-printf '[RUN] %s seed=%s experiment=%s selector=%s 20k 4GPU Epochs=%s\n' \
+printf '[RUN] %s seed=%s experiment=%s selector=%s 20k 3GPU Epochs=%s\n' \
   "$RUN_ID" "$SEED" "$EXPERIMENT" "$SELECTOR" "$EPOCHS"
 printf '[WARN] unchanged old BioData2Seq backbone / shared_mask; 20k fixed indices / 4GPU; baseline has no A or deploy\n'
 sha256sum "$CODE_DIR/$SCRIPT" "$RAMER_ROOT/cluster.py"
 
-"$PYTHON" -m torch.distributed.run --standalone --nnodes=1 --nproc_per_node=4 \
+"$PYTHON" -m torch.distributed.run --standalone --nnodes=1 --nproc_per_node=3 \
  "$CODE_DIR/$SCRIPT" \
  --experiment "$EXPERIMENT" --selector "$SELECTOR" --qkv_heads 8 \
  --json_file "$DATA_DIR/uniprot_20W_struct_seq_reaction_121_without_new392.json" \
