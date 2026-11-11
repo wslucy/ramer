@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=ramer_legacy_3gpu
+#SBATCH --job-name=ramer_legacy_gpu
 #SBATCH --partition=a100
-#SBATCH --nodelist=node105
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=24
-#SBATCH --gres=gpu:3
-#SBATCH --mem=192G
+#SBATCH --cpus-per-task=8
+#SBATCH --gres=gpu:1
+#SBATCH --mem=64G
 #SBATCH --time=0
 set -euo pipefail
 
@@ -39,19 +38,20 @@ for f in "$CODE_DIR/$SCRIPT" "$ENCODER_DIR/Data2seq_v2.py" \
 done
 [[ -x "$PYTHON" ]] || { echo "Python not executable: $PYTHON" >&2; exit 2; }
 
-SAVE_DIR="${SAVE_DIR_OVERRIDE:-$CODE_DIR/legacy_20k_controls/${RUN_ID}_seed${SEED}_${RUN_TAG}}"
+SAVE_DIR="${SAVE_DIR_OVERRIDE:-$CODE_DIR/legacy_20k_controls/${RUN_ID}_seed${SEED}_${RUN_TAG}_g${SLURM_GPUS_ON_NODE:-${GPUS:-1}}}"
 if [[ -e "$SAVE_DIR/clustering_eval_history.csv" || -e "$SAVE_DIR/config.json" ]]; then
   echo "Refuse to overwrite: $SAVE_DIR" >&2; exit 2
 fi
 mkdir -p "$SAVE_DIR"
 cd "$CODE_DIR"
 export ENCODER_DIR TOKENIZERS_PARALLELISM=false OMP_NUM_THREADS=4
-printf '[RUN] %s seed=%s experiment=%s selector=%s 20k 3GPU Epochs=%s\n' \
+printf '[RESOURCES] host=%s allocated_gpus=%s cuda_visible=%s\n' "$(hostname)" "${SLURM_GPUS_ON_NODE:-unknown}" "${CUDA_VISIBLE_DEVICES:-not-set}"
+printf '[RUN] %s seed=%s experiment=%s selector=%s 20k GPUs=${SLURM_GPUS_ON_NODE:-unknown} Epochs=%s\n' \
   "$RUN_ID" "$SEED" "$EXPERIMENT" "$SELECTOR" "$EPOCHS"
-printf '[WARN] unchanged old BioData2Seq backbone / shared_mask; 20k fixed indices / 4GPU; baseline has no A or deploy\n'
+printf '[WARN] unchanged old BioData2Seq backbone / shared_mask; 20k fixed indices / variable GPUs; baseline has no A or deploy\n'
 sha256sum "$CODE_DIR/$SCRIPT" "$RAMER_ROOT/cluster.py"
 
-"$PYTHON" -m torch.distributed.run --standalone --nnodes=1 --nproc_per_node=3 \
+"$PYTHON" -m torch.distributed.run --standalone --nnodes=1 --nproc_per_node=gpu \
  "$CODE_DIR/$SCRIPT" \
  --experiment "$EXPERIMENT" --selector "$SELECTOR" --qkv_heads 8 \
  --json_file "$DATA_DIR/uniprot_20W_struct_seq_reaction_121_without_new392.json" \
