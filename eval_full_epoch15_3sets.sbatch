@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=ramer_floor15_eval3
 #SBATCH --partition=a100
+#SBATCH --nodelist=node101
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=12
@@ -26,7 +27,7 @@ find_first(){
 # 与用户原 inference.py 提供的 zero_shot/data 路径兼容，但不假设文件一定存在。
 NEW392_JSON="${NEW392_JSON:-$(find_first "$DATA_ROOT/test_data/NEW-392.json" "$RAMER_ROOT/zero_shot/data/NEW-392.json" || true)}"
 NEW392_TRUTH="${NEW392_TRUTH:-$(find_first "$DATA_ROOT/test_data/new.csv" "$RAMER_ROOT/zero_shot/data/new.csv" || true)}"
-RAM255_JSON="${RAM255_JSON:-$(find_first "$DATA_ROOT/test_data/RAM255.json" "$DATA_ROOT/test_data/RAM-255.json" "$RAMER_ROOT/zero_shot/data/RAM255.json" "$RAMER_ROOT/zero_shot/data/RAM-255.json" || true)}"
+RAM255_JSON="${RAM255_JSON:-$DATA_ROOT/test_data/ram255.json}"
 RAM255_TRUTH="${RAM255_TRUTH:-$(find_first "$DATA_ROOT/test_data/ram255.csv" "$DATA_ROOT/test_data/RAM255.csv" "$DATA_ROOT/test_data/ram.csv" "$RAMER_ROOT/zero_shot/data/ram255.csv" || true)}"
 for val in CHECKPOINT PRICE_JSON PRICE_TRUTH NEW392_JSON NEW392_TRUTH RAM255_JSON RAM255_TRUTH;do
   file="${!val}"
