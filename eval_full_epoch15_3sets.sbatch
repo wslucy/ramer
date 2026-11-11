@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=ramer_floor15_eval3
 #SBATCH --partition=a100
-#SBATCH --nodelist=node101
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=12
