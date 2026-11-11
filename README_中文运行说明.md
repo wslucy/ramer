@@ -164,3 +164,30 @@ python test_components.py
 ```
 
 这是**代码语法、算法张量和采样器 CPU 测试**；无法在本地重现服务器完整 ProtT5/MolT5 和 4GPU Slurm 环境，运行前请按文件检查和日志确认。
+
+## 更新（2026-11-11）：无需改 Slurm 文件，提交时自由选择 GPU 数和节点
+
+现在使用统一入口 `submit_4gpu.sh`（历史文件名保留；已支持任意 1–8 卡，须符合节点和分区实际资源）。
+
+- `GPUS=1`：申请 1 张 GPU；`GPUS=2`、`GPUS=3` 同理。
+- `GPU_NODE=auto`：不绑定节点，Slurm 自动找满足申请条件的节点。
+- `GPU_NODE=node105`：只在 node105 上排队，注意该节点必须有足够空闲 GPU。
+- `GPU_PARTITION=a100`：默认 A100 分区。其他分区需确认节点、显卡类型和显存需求。
+- `TIME_LIMIT=0`：请求无时限运行，须遵守分区/QOS 限制。
+- 训练 torchrun 进程数自动检测分配的 GPU（`--nproc_per_node=gpu`）；**不需手改为 1/2/3/4**。
+- 默认每张 GPU 申请 8 CPU 核心、48GB 内存，最低 64GB 整机内存；可通过 `CPUS_PER_GPU` 和 `MEM_PER_GPU_GB` 调整。需确认集群节点允许。
+- 评估模式统一为 `EVAL15`，只支持 `GPUS=1`。
+
+示例：
+
+```bash
+GPUS=1 GPU_NODE=auto bash submit_4gpu.sh MLP_BASE
+GPUS=2 GPU_NODE=auto RUN_TAG=g2_floor bash submit_4gpu.sh MLP_FLOOR
+GPUS=3 GPU_NODE=node105 RUN_TAG=g3_qkv bash submit_4gpu.sh QKV_BASE
+GPUS=1 GPU_NODE=auto bash submit_4gpu.sh EVAL15
+GPUS=2 GPU_NODE=auto RUN_TAG=g2_bpair PAIRS_PER_BATCH=2 bash submit_4gpu.sh B_PAIRED
+```
+
+注意：GPU 数变化会改变全局 Batch Size（默认每卡 16），不能直接把不同 GPU 数的最优 ARI 视为严格的单变量对照。做 MLP 与 QKV 对照、B RANDOM 与 B PAIRED 对照时，请使用相同 GPU 数与每卡 Batch Size。
+
+修改后需要重新 `git pull` 并复制更新的 `submit_4gpu.sh`、`run_legacy_attention_4gpu.sbatch`、`run_B_sampler_4gpu.sbatch`、`eval_full_epoch15_3sets.sbatch` 到项目根目录。
