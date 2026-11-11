@@ -797,7 +797,8 @@ def compute_losses(out,temp,a,batch=None,epoch=1):
     result['slot_overlap']=result['diversity']
     result['diversity_effective']=effective_diversity_loss(result['diversity'],a)
     current_diversity_weight=diversity_weight_for_epoch(epoch,a)
-    result['diversity_weight']=result['diversity'].new_tensor(current_diversity_weight)    result['diversity_floor_active']=((result['diversity'] > a.diversity_floor).to(result['diversity'].dtype)
+    result['diversity_weight']=result['diversity'].new_tensor(current_diversity_weight)
+    result['diversity_floor_active']=((result['diversity'] > a.diversity_floor).to(result['diversity'].dtype)
         if a.diversity_mode in ('floor','dynamic_floor') else result['diversity'].new_zeros(()))
     if b_enabled and a.b_sequence_weight>0:
         seq_rel,seq_pos,seq_anchors=shared_reaction_sequence_loss(
