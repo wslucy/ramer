@@ -191,3 +191,42 @@ GPUS=2 GPU_NODE=auto RUN_TAG=g2_bpair PAIRS_PER_BATCH=2 bash submit_4gpu.sh B_PA
 注意：GPU 数变化会改变全局 Batch Size（默认每卡 16），不能直接把不同 GPU 数的最优 ARI 视为严格的单变量对照。做 MLP 与 QKV 对照、B RANDOM 与 B PAIRED 对照时，请使用相同 GPU 数与每卡 Batch Size。
 
 修改后需要重新 `git pull` 并复制更新的 `submit_4gpu.sh`、`run_legacy_attention_4gpu.sbatch`、`run_B_sampler_4gpu.sbatch`、`eval_full_epoch15_3sets.sbatch` 到项目根目录。
+
+
+## 2026-11-12 更正：Epoch 15 的三数据集评估应是 Top-1/MaxSep 的 P/R/F1
+
+**不要使用** `eval_full_epoch15_3sets.sbatch`：它运行的是 ARI/NMI 聚类评估，不是用户所需的 EC 检索评估。
+
+现在改为：
+- 原始预测代码备份：`legacy_inference_original.py`（原上传的 `inference.py`）。
+- 三数据集评估主程序：`eval_epoch15_top1_maxsep.py`。
+- 单卡 Slurm：`eval_epoch15_top1_maxsep.sbatch`。
+- 输出：`eval_floor15_top1_maxsep/top1_maxsep_weighted_prf.csv`。
+
+原方法保留 `clean100_set.json` / `clean100_set_dict.json` 参考库、余弦相似度、Top-1、MaxSep 动态 K 选择算法和 sklearn weighted precision/recall/F1。相比历史代码，指标计算改为**按测试蛋白 ID 匹配真实标签**，以避免仅靠 CSV 行顺序造成错位。作为安全检查，如果测试 ID 出现在背景库中会报错。默认不计算可能因类别分布而失败的 AUC。
+
+请先确认参考库文件的真实位置：
+
+```bash
+find /datapool/home/tanlijun/RAMER -name clean100_set.json -o -name clean100_set_dict.json
+```
+
+然后执行（如默认路径能找到参考库，不需指定 BACKGROUND_JSON 和 BACKGROUND_DICT）：
+
+```bash
+cd /datapool/home/tanlijun/RAMER/dec-v2/RAMER_unsupervised_AB
+mkdir -p slurm_logs
+CODE_DIR="$PWD" sbatch --output="$PWD/slurm_logs/eval_floor15_prf_%j.out" \
+  --error="$PWD/slurm_logs/eval_floor15_prf_%j.err" \
+  --export=ALL eval_epoch15_top1_maxsep.sbatch
+```
+
+若参考库在自定义目录：
+
+```bash
+CODE_DIR="$PWD" BACKGROUND_JSON=/actual/path/clean100_set.json \
+BACKGROUND_DICT=/actual/path/clean100_set_dict.json \
+sbatch --export=ALL eval_epoch15_top1_maxsep.sbatch
+```
+
+Price-149、NEW-392、RAM255 的真实标签文件使用 `test_data/price.csv`、`test_data/new.csv`、`test_data/ram255.csv`。指标均为多标签、weighted 平均。
