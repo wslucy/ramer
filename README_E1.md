@@ -33,7 +33,7 @@
 
 ## 参数消融
 - ROUTER_MODE=gated（主实验）
-- ROUTER_MODE=uniform（同样参数量基本一致，仅取消残基区别加权）
+- ROUTER_MODE=uniform（仅取消残基区别加权；此对照不包含门控 MLP，因此参数量略少，不能声称完全匹配容量）
 - ROUTE_WEIGHT=0.1（辅助损失）
 - ROUTE_SCALE=0.25（固定残差系数）
 建议相同 4-GPU、相同 seed、不同 RUN_TAG，比较 gated 与 uniform。
